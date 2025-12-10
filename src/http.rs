@@ -1,11 +1,11 @@
-use std::{error::Error, fmt::Display, str::FromStr};
+use std::{collections::HashMap, error::Error, fmt::Display, str::FromStr};
 
 #[derive(Debug)]
 pub struct HttpRequest {
     method: HttpRequestMethod,
     query: String,
     version: String,
-    headers: Vec<(String, String)>,
+    headers: HashMap<String, String>,
 }
 
 impl HttpRequest {
@@ -19,14 +19,13 @@ impl HttpRequest {
         let query = status_line_parts[1];
         let version = status_line_parts[2];
 
-        let mut headers: Vec<(String, String)> = Vec::new();
+        let mut headers: HashMap<String, String> = HashMap::new();
 
         for line in lines.iter().skip(1) {
             let header_parts: Vec<_> = line.split(':').collect();
-            let mut header: (String, String) = (" ".to_owned(), " ".to_owned());
-            header.0 = header_parts[0].trim().to_owned();
-            header.1 = header_parts[1].trim().to_owned();
-            headers.push(header);
+            let key = header_parts[0].trim().to_owned();
+            let value = header_parts[1].trim().to_owned();
+            headers.insert(key, value);
         }
 
         Ok(HttpRequest {
