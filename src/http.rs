@@ -2,10 +2,10 @@ use std::{collections::HashMap, error::Error, fmt::Display, str::FromStr};
 
 #[derive(Debug)]
 pub struct HttpRequest {
-    method: HttpRequestMethod,
-    query: String,
-    version: String,
-    headers: HashMap<String, String>,
+    pub method: HttpRequestMethod,
+    pub query: String,
+    pub version: String,
+    pub headers: HashMap<String, String>,
 }
 
 impl HttpRequest {
@@ -61,7 +61,7 @@ impl FromStr for HttpRequestMethod {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum ParseHttpRequestError {
     InvalidStatusLine,
     InvalidMethod,
