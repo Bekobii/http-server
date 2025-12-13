@@ -1,11 +1,13 @@
 use std::{
+    env::current_dir,
     error::Error,
     fs,
-    io::{BufRead, BufReader, Write},
+    io::{self, BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
+    path::PathBuf,
 };
 
-use crate::http::HttpRequest;
+use crate::http::{HttpRequest, ParseHttpRequestError};
 
 pub fn run(port: &str) -> Result<(), Box<dyn Error>> {
     let bind_address = format!("127.0.0.1:{}", port);
@@ -39,13 +41,18 @@ fn handle_http_request(request: HttpRequest) -> Result<String, Box<dyn Error>> {
         status_line.push_str("HTTP/1.1 200 OK");
         content = fs::read_to_string("index.html")?;
     } else {
-        let file = request.query[1..].to_string();
-        if fs::exists(&file)? {
-            status_line.push_str("HTTP/1.1 200 OK");
-            content = fs::read_to_string(file)?;
-        } else {
-            status_line.push_str("HTTP/1.1 404 NOT FOUND");
-            content = fs::read_to_string("404.html")?;
+        let request_path = request.query[1..].to_owned();
+        let result = resolve_path(request_path);
+        match result {
+            Ok(path) => {
+                status_line.push_str("HTTP/1.1 200 OK");
+                content = fs::read_to_string(path)?;
+            }
+            Err(err) => {
+                eprintln!("An error occured: {}", err);
+                status_line.push_str("HTTP/1.1 404 NOT FOUND");
+                content = fs::read_to_string("404.html")?;
+            }
         }
     }
 
@@ -53,4 +60,21 @@ fn handle_http_request(request: HttpRequest) -> Result<String, Box<dyn Error>> {
 
     let response = format!("{status_line}\r\nContent-Length: {content_length}\r\n\r\n {content}");
     Ok(response)
+}
+
+///
+/// Returns an error if the path is invalid.
+///
+fn resolve_path(request_path: String) -> Result<PathBuf, io::Error> {
+    let mut path = PathBuf::from(request_path);
+    let current_directory = current_dir().unwrap();
+    path = current_directory.join(path);
+    let canonical = path.canonicalize()?;
+    if !canonical.starts_with(current_directory) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Path escapes not allowed.",
+        ));
+    }
+    Ok(canonical)
 }
